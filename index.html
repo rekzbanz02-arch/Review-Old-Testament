@@ -1624,5 +1624,85 @@ panel.style.display=panel.style.display==="block"?"none":"block";
       });
     });
   </script>
+
+<!--
+  SUBJECT-PAGE ACCESS GATE
+  ========================
+  Paste this block right before </body> in EACH of your 6 subject reviewer
+  HTML files (Criminology Area, Law Enforcement, Crime Detection, Forensic
+  Science, Criminal Law, Correctional Administration).
+
+  Also wrap your actual reviewer content (the questions/quiz) in:
+      <div id="reviewerContent" class="hidden"> ... your existing content ... </div>
+  and add this to your <style>:
+      .hidden { display: none !important; }
+
+  This makes each subject page check the token itself — copying the URL
+  without a valid, approved session gets you nothing.
+-->
+
+<div id="gateChecking" style="text-align:center;padding:60px 20px;font-family:sans-serif;">
+  <p>Verifying your access…</p>
+</div>
+
+<div id="gateDenied" class="hidden" style="max-width:420px;margin:60px auto;text-align:center;font-family:sans-serif;
+     background:#fff;border-radius:16px;padding:32px;box-shadow:0 8px 24px rgba(0,0,0,.15);">
+  <h2 id="gateDeniedTitle">Access Denied</h2>
+  <p id="gateDeniedMsg">You don't have permission to view this reviewer yet.</p>
+  <a href="reviewer.html" style="display:inline-block;background:#7a1f2b;color:#fff;padding:10px 24px;
+     border-radius:8px;text-decoration:none;font-weight:700;">← Back to Reviewer Hub</a>
+</div>
+
+<script>
+(function () {
+  // Must match the API_URL used in reviewer.html / main.html
+  const API_URL = "https://script.google.com/macros/s/AKfycbzTyj-tiIzlGXfzoKQV3i8EfdXe_cDzGeX3KIofXfwmfIXJd2jnDf18XYXP9wI2QDPM/exec";
+
+  function getParam(name) {
+    return new URLSearchParams(window.location.search).get(name);
+  }
+
+  function showDenied(title, msg) {
+    document.getElementById("gateChecking").classList.add("hidden");
+    document.getElementById("gateDeniedTitle").textContent = title;
+    document.getElementById("gateDeniedMsg").textContent = msg;
+    document.getElementById("gateDenied").classList.remove("hidden");
+  }
+
+  async function checkAccess() {
+    const userId = getParam("userId");
+    const token = getParam("token");
+
+    if (!userId || !token) {
+      showDenied("Not Logged In", "Open this page from the Reviewer Hub after logging in.");
+      return;
+    }
+
+    try {
+      const qs = new URLSearchParams({ action: "checkAccess", userId, token }).toString();
+      const res = await fetch(`${API_URL}?${qs}`);
+      const r = await res.json();
+
+      if (r.status === "ok" && r.accessStatus === "approved") {
+        document.getElementById("gateChecking").classList.add("hidden");
+        const content = document.getElementById("reviewerContent");
+        if (content) content.classList.remove("hidden");
+      } else if (r.accessStatus === "blocked") {
+        showDenied("Access Blocked", "Your account has been blocked. Contact the owner for help.");
+      } else if (r.accessStatus === "pending" || r.accessStatus === "submitted") {
+        showDenied("Not Approved Yet", "Your payment hasn't been approved yet.");
+      } else {
+        showDenied("Session Expired", "Please log in again through the Access Portal.");
+      }
+    } catch (e) {
+      showDenied("Connection Error", "Couldn't verify your access. Check your connection and try again.");
+    }
+  }
+
+  checkAccess();
+})();
+</script>
+
+    
 </body>
 </html>
